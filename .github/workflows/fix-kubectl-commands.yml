@@ -1,0 +1,36 @@
+name: Improve kubectl simulator
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add realistic kubectl commands
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text()
+          marker = "if(c.startsWith('kubectl ')){pr('error: unsupported or incomplete kubectl syntax for this simulator','err');setHints('generic');return}"
+          insert = """if(c.startsWith('kubectl exec ')){\npr('Defaulting container name to payment-api','out');\nif(c.includes(' -- bash')||c.includes(' -- /bin/bash')||c.includes(' -- sh')||c.includes(' -- /bin/sh')){pr('root@payment-api-7d8f6c9b7-2k9sx:/app#','ok');pr('Interactive shell opened. Try: env, ps, cat /app/config.yaml, curl localhost:8080/health','out')}\nelse if(c.includes(' -- env')){pr('DB_HOST=postgres.production.svc','out');pr('DB_USER=payment','out');pr('DB_PASSWORD=***','out');pr('PORT=8080','out')}\nelse if(c.includes(' -- ps')){pr('PID   COMMAND','out');pr('1     /app/payment-api','out')}\nelse if(c.includes(' -- curl ')||c.includes(' -- wget ')){pr('HTTP/1.1 500 Internal Server Error','err');pr('database authentication failed','err')}\nelse{pr('command executed successfully','ok')}\nsetHints('logs');upd();return}\nif(c.startsWith('kubectl describe pod payment-api-7d8f6c9b7-2k9sx')){pr('Name: payment-api-7d8f6c9b7-2k9sx');pr('Status: CrashLoopBackOff','err');pr('Containers: payment-api');pr('State: Waiting');pr('Reason: CrashLoopBackOff');pr('Last State: Terminated');pr('Restart Count: 17');pr('Environment: DB_PASSWORD from secret/payment-db');stage=Math.max(stage,2);setHints('logs');upd();return}\n""" + marker
+          if marker not in s:
+              raise SystemExit('marker not found')
+          s = s.replace(marker, insert, 1)
+          p.write_text(s)
+          PY
+          if git diff --quiet -- index.html; then
+            echo 'No changes needed'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Support realistic kubectl exec and describe commands'
+          git push
