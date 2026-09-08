@@ -38,6 +38,8 @@ jobs:
           p = Path('index.html')
           s = p.read_text()
           if 'id="nicknameModal"' not in s:
+              # Load Supabase and the generated runtime config before the app script.
+              s = s.replace('</head>', '<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="incidentlab-config.js"></script></head>', 1)
               s = s.replace('</style>', '''
           #nicknameModal{position:fixed;inset:0;background:rgba(4,7,10,.88);display:flex;align-items:center;justify-content:center;z-index:20}
           #nicknameModal.hidden{display:none}
@@ -47,7 +49,6 @@ jobs:
               s = s.replace('<body>', '''<body><div id="nicknameModal"><div class="nicknameBox"><h2>Welcome to IncidentLab</h2><p>Choose a unique nickname. It will be used for your profile and future leaderboard.</p><input id="nicknameInput" class="nicknameInput" maxlength="20" autocomplete="off" placeholder="e.g. olga_dev"><div id="nicknameError" class="nicknameError"></div><div class="nicknameActions"><button class="btn" id="nicknameContinue">Continue</button></div></div></div>''', 1)
               marker = '<div class="top">'
               s = s.replace(marker, '<div class="top"><div><span id="playerBadge" class="badge" style="margin-right:8px"></span></div>', 1)
-              # Undo the duplicated opening top produced by the compact replacement and put the badge into the existing top.
               s = s.replace('<div class="top"><div><span id="playerBadge" class="badge" style="margin-right:8px"></span></div><div><h1>IncidentLab</h1>', '<div class="top"><div><h1>IncidentLab</h1>', 1)
               s = s.replace('<div class="badge">INCIDENT #001 · ACTIVE</div>', '<div><span id="playerBadge" class="badge" style="margin-right:8px"></span><span class="badge">INCIDENT #001 · ACTIVE</span></div>', 1)
               script_marker = "const $=id=>document.getElementById(id),term=$('term'),inp=$('input'),hints=$('hints');"
