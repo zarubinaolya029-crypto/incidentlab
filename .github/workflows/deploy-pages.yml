@@ -31,6 +31,18 @@ jobs:
           window.INCIDENTLAB_SUPABASE_KEY = '$SUPABASE_PUBLISHABLE_KEY';
           EOF
 
+      - name: Load terminal runtime fixes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          marker = '<script src="incidentlab-fixes.js"></script>'
+          if marker not in s:
+              s = s.replace('</body>', marker + '</body>')
+          p.write_text(s, encoding='utf-8')
+          PY
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
