@@ -37,7 +37,7 @@ jobs:
           from pathlib import Path
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
-          markers = ['<script src="virtual-engine.js"></script>', '<script src="virtual-ux-guard.js"></script>']
+          markers = ['<script src="virtual-engine.js"></script>', '<script src="virtual-ux-guard.js"></script>', '<script src="terminal-polish.js"></script>']
           for marker in markers:
               if marker not in s:
                   s = s.replace('</body>', marker + '</body>')
