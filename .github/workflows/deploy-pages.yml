@@ -31,13 +31,13 @@ jobs:
           window.INCIDENTLAB_SUPABASE_KEY = '$SUPABASE_PUBLISHABLE_KEY';
           EOF
 
-      - name: Load terminal runtime fixes
+      - name: Load virtual incident engine
         run: |
           python - <<'PY'
           from pathlib import Path
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
-          marker = '<script src="incidentlab-fixes.js"></script>'
+          marker = '<script src="virtual-engine.js"></script>'
           if marker not in s:
               s = s.replace('</body>', marker + '</body>')
           p.write_text(s, encoding='utf-8')
