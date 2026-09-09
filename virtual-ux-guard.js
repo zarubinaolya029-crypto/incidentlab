@@ -5,56 +5,56 @@ function sync(){const t=document.getElementById('terminal');if(!t||!t.classList.
 sync();
 new MutationObserver(sync).observe(document.body,{attributes:true,subtree:true,attributeFilter:['class','style']});
 
-// Keep normal browser selection behavior. Only focus the input when the click
-// is not part of a text selection.
+// Never steal focus from a text selection.
+term.addEventListener('mousedown',e=>{
+  if(e.target!==input) return;
+  e.stopPropagation();
+},true);
 term.addEventListener('click',e=>{
   const sel=window.getSelection&&window.getSelection();
-  if(sel&&sel.toString())return;
-  if(e.target!==input)input.focus();
+  if(sel&&sel.toString()) return;
+  if(e.target!==input) input.focus();
 },true);
 
-// Copy the complete current selection after the drag/touch selection has
-// finished. Using the Selection object itself preserves newlines across many
-// terminal rows; there is no one-line extraction here.
-let copyTimer=null;
-function copySelection(){
+// Copy the complete browser selection as soon as the mouse selection ends.
+// execCommand is deliberately attempted synchronously inside mouseup so it
+// retains the browser's user-gesture permission for clipboard access.
+function copySelectionNow(){
   const sel=window.getSelection&&window.getSelection();
   if(!sel||sel.rangeCount===0)return;
   const text=sel.toString();
   if(!text.trim())return;
-  const range=sel.getRangeAt(0);
-  const root=range.commonAncestorContainer.nodeType===1?range.commonAncestorContainer:range.commonAncestorContainer.parentElement;
-  if(!root||!term.contains(root))return;
-  if(root.closest&&root.closest('.inputline'))return;
-  clearTimeout(copyTimer);
-  const done=ok=>{
-    if(!ok)return;
-    let toast=document.getElementById('copyToast');
-    if(!toast){toast=document.createElement('div');toast.id='copyToast';toast.textContent='Copied';document.body.appendChild(toast)}
-    toast.className='incidentlab-copy-toast show';
-    copyTimer=setTimeout(()=>toast.classList.remove('show'),900);
-  };
-  if(navigator.clipboard&&window.isSecureContext){
-    navigator.clipboard.writeText(text).then(()=>done(true)).catch(()=>{});
-  }else{
-    try{
-      const ta=document.createElement('textarea');
-      ta.value=text;
-      ta.setAttribute('readonly','');
-      ta.style.position='fixed';ta.style.left='-9999px';ta.style.top='0';
-      document.body.appendChild(ta);ta.select();
-      const ok=document.execCommand('copy');ta.remove();done(ok);
-    }catch(e){}
-  }
+  const node=sel.anchorNode;
+  if(!node||!term.contains(node))return;
+  if(node.parentElement&&node.parentElement.closest('.inputline'))return;
+  let copied=false;
+  try{
+    const range=sel.getRangeAt(0);
+    const holder=document.createElement('div');
+    holder.style.position='fixed';holder.style.left='-99999px';holder.style.top='0';holder.style.whiteSpace='pre-wrap';
+    holder.appendChild(range.cloneContents());
+    document.body.appendChild(holder);
+    const r=document.createRange();r.selectNodeContents(holder);
+    sel.removeAllRanges();sel.addRange(r);
+    copied=document.execCommand('copy');
+    sel.removeAllRanges();sel.addRange(range);
+    holder.remove();
+  }catch(e){}
+  if(!copied&&navigator.clipboard&&window.isSecureContext){
+    navigator.clipboard.writeText(text).then(()=>toast()).catch(()=>{});
+  }else if(copied)toast();
 }
-function scheduleCopy(delay){setTimeout(copySelection,delay)}
-// Listen on document as well as the terminal so selection ending at the edge
-// of the scroll container is still captured.
-document.addEventListener('mouseup',()=>scheduleCopy(20));
-document.addEventListener('touchend',()=>scheduleCopy(120),{passive:true});
+function toast(){
+  let t=document.getElementById('copyToast');
+  if(!t){t=document.createElement('div');t.id='copyToast';t.textContent='Copied';document.body.appendChild(t)}
+  t.className='incidentlab-copy-toast show';
+  clearTimeout(window.__incidentlabCopyTimer);
+  window.__incidentlabCopyTimer=setTimeout(()=>t.classList.remove('show'),900);
+}
+term.addEventListener('mouseup',copySelectionNow,true);
+term.addEventListener('touchend',()=>setTimeout(copySelectionNow,50),{passive:true,capture:true});
 
-// The prompt remains an ordinary last row in the terminal flow. It never
-// overlays or hides output above it.
+// Input is part of normal terminal flow and can never cover output.
 const style=document.createElement('style');
 style.textContent=`
   .term{position:relative;overflow:auto;padding-bottom:15px;scroll-padding-bottom:15px;}
